@@ -12,31 +12,55 @@
         .price { color: #0088cc; font-weight: bold; }
         .select-btn { background: #0088cc; border: none; color: white; padding: 8px 15px; border-radius: 8px; cursor: pointer; }
         .select-btn.active { background: #4caf50; }
-        #order-btn { width: 100%; background: #0088cc; color: white; border: none; padding: 15px; border-radius: 12px; font-size: 18px; font-weight: bold; position: fixed; bottom: 20px; left: 0; right: 0; margin: 0 15px; display: none; }
+        #order-btn { width: calc(100% - 30px); background: #0088cc; color: white; border: none; padding: 15px; border-radius: 12px; font-size: 18px; font-weight: bold; position: fixed; bottom: 20px; left: 15px; display: none; z-index: 1000; }
+        #loader { text-align: center; padding: 20px; color: #888; }
     </style>
 </head>
 <body>
-    <h2>🚀 Выберите услуги</h2>
+    <h2>🚀 Mosbix Space: Услуги</h2>
     
+    <div id="loader">Загрузка меню с вашего сервера...</div>
     <div id="services-list">
-        <div class="service-card">
-            <div class="service-info"><h3>Мужская стрижка</h3><div class="price">60 000 сум</div></div>
-            <button class="select-btn" onclick="toggleService(this, 'Мужская стрижка', 60000)">Выбрать</button>
         </div>
-        <div class="service-card">
-            <div class="service-info"><h3>Оформление бороды</h3><div class="price">40 000 сум</div></div>
-            <button class="select-btn" onclick="toggleService(this, 'Оформление бороды', 40000)">Выбрать</button>
-        </div>
-    </div>
 
     <button id="order-btn" onclick="sendOrder()">Записаться (0 сум)</button>
 
     <script>
         let tg = window.Telegram.WebApp;
         tg.expand();
+
+        const SERVER_URL = "https://hematozoic-lankly-demetra.ngrok-free.dev";
         let selectedServices = [];
         let totalPrice = 0;
 
+        // 1. Функция получения данных с твоего ПК
+        async function loadServices() {
+            try {
+                const response = await fetch(`${SERVER_URL}/get_services`);
+                const services = await response.json();
+                document.getElementById('loader').style.display = 'none';
+                renderServices(services);
+            } catch (error) {
+                console.error('Ошибка загрузки:', error);
+                document.getElementById('loader').innerText = "❌ Сервер на ПК не отвечает. Проверьте ngrok и запуск main.py";
+            }
+        }
+
+        // 2. Функция отрисовки карточек
+        function renderServices(services) {
+            const list = document.getElementById('services-list');
+            list.innerHTML = services.map(s => `
+                <div class="service-card">
+                    <div class="service-info">
+                        <h3>${s.name}</h3>
+                        <div class="price">${s.price.toLocaleString()} сум</div>
+                    </div>
+                    <button class="select-btn" onclick="toggleService(this, '${s.name}', ${s.price})">Выбрать</button>
+                </div>
+            `).join('');
+        }
+
+        // 3. Логика выбора услуг
         function toggleService(btn, name, price) {
             btn.classList.toggle('active');
             if (btn.classList.contains('active')) {
@@ -55,20 +79,24 @@
             const btn = document.getElementById('order-btn');
             if (selectedServices.length > 0) {
                 btn.style.display = 'block';
-                btn.innerText = `Записаться (${totalPrice} сум)`;
+                btn.innerText = `Записаться (${totalPrice.toLocaleString()} сум)`;
             } else {
                 btn.style.display = 'none';
             }
         }
 
+        // 4. Отправка данных боту
         function sendOrder() {
             let data = {
                 services: selectedServices,
                 total: totalPrice,
                 action: "new_order"
             };
-            tg.sendData(JSON.stringify(data)); // Отправляем JSON боту
+            tg.sendData(JSON.stringify(data));
         }
+
+        // Запуск при открытии страницы
+        loadServices();
     </script>
 </body>
 </html>
