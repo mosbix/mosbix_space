@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mosbix Space App</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body { font-family: sans-serif; background-color: #f0f0f0; text-align: center; padding: 20px; }
+        .card { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        button { background: #0088cc; color: white; border: none; padding: 10px 20px; border-radius: 10px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🚀 Mosbix Space</h1>
+        <p>Добро пожаловать в наше мини-приложение!</p>
+        <button onclick="sendData()">Подтвердить вход</button>
+    </div>
+
+    <script>
+        let tg = window.Telegram.WebApp;
+        tg.expand(); // Развернуть на весь экран
+
+        function sendData() {
+            // Отправляем данные обратно в бот
+            tg.sendData("WebApp_Connected");
+            tg.close();
+        }
+    </script>
+</body>
+</html>
