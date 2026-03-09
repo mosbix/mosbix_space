@@ -3,29 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mosbix Space App</title>
+    <title>Mosbix Space Booking</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        body { font-family: sans-serif; background-color: #f0f0f0; text-align: center; padding: 20px; }
-        .card { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        button { background: #0088cc; color: white; border: none; padding: 10px 20px; border-radius: 10px; cursor: pointer; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #1a1a1a; color: white; padding: 15px; }
+        .service-card { background: #2a2a2a; border-radius: 12px; padding: 15px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #333; }
+        .service-info h3 { margin: 0; font-size: 16px; }
+        .price { color: #0088cc; font-weight: bold; }
+        .select-btn { background: #0088cc; border: none; color: white; padding: 8px 15px; border-radius: 8px; cursor: pointer; }
+        .select-btn.active { background: #4caf50; }
+        #order-btn { width: 100%; background: #0088cc; color: white; border: none; padding: 15px; border-radius: 12px; font-size: 18px; font-weight: bold; position: fixed; bottom: 20px; left: 0; right: 0; margin: 0 15px; display: none; }
     </style>
 </head>
 <body>
-    <div class="card">
-        <h1>🚀 Mosbix Space</h1>
-        <p>Добро пожаловать в наше мини-приложение!</p>
-        <button onclick="sendData()">Подтвердить вход</button>
+    <h2>🚀 Выберите услуги</h2>
+    
+    <div id="services-list">
+        <div class="service-card">
+            <div class="service-info"><h3>Мужская стрижка</h3><div class="price">60 000 сум</div></div>
+            <button class="select-btn" onclick="toggleService(this, 'Мужская стрижка', 60000)">Выбрать</button>
+        </div>
+        <div class="service-card">
+            <div class="service-info"><h3>Оформление бороды</h3><div class="price">40 000 сум</div></div>
+            <button class="select-btn" onclick="toggleService(this, 'Оформление бороды', 40000)">Выбрать</button>
+        </div>
     </div>
+
+    <button id="order-btn" onclick="sendOrder()">Записаться (0 сум)</button>
 
     <script>
         let tg = window.Telegram.WebApp;
-        tg.expand(); // Развернуть на весь экран
+        tg.expand();
+        let selectedServices = [];
+        let totalPrice = 0;
 
-        function sendData() {
-            // Отправляем данные обратно в бот
-            tg.sendData("WebApp_Connected");
-            tg.close();
+        function toggleService(btn, name, price) {
+            btn.classList.toggle('active');
+            if (btn.classList.contains('active')) {
+                selectedServices.push(name);
+                totalPrice += price;
+                btn.innerText = "Удалить";
+            } else {
+                selectedServices = selectedServices.filter(s => s !== name);
+                totalPrice -= price;
+                btn.innerText = "Выбрать";
+            }
+            updateButton();
+        }
+
+        function updateButton() {
+            const btn = document.getElementById('order-btn');
+            if (selectedServices.length > 0) {
+                btn.style.display = 'block';
+                btn.innerText = `Записаться (${totalPrice} сум)`;
+            } else {
+                btn.style.display = 'none';
+            }
+        }
+
+        function sendOrder() {
+            let data = {
+                services: selectedServices,
+                total: totalPrice,
+                action: "new_order"
+            };
+            tg.sendData(JSON.stringify(data)); // Отправляем JSON боту
         }
     </script>
 </body>
