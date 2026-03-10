@@ -6,165 +6,226 @@
     <title>Mosbix Space</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
+        :root {
+            --bg: var(--tg-theme-bg-color, #f4f4f5);
+            --text: var(--tg-theme-text-color, #000000);
+            --hint: var(--tg-theme-hint-color, #888888);
+            --btn: var(--tg-theme-button-color, #3390ec);
+            --btn-text: var(--tg-theme-button-text-color, #ffffff);
+            --sec-bg: var(--tg-theme-secondary-bg-color, #ffffff);
+        }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--tg-theme-bg-color, #f4f4f5);
-            color: var(--tg-theme-text-color, #000000);
-            margin: 0; padding: 16px; box-sizing: border-box;
+            font-family: -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0; padding: 15px;
+            user-select: none;
         }
-        .header-nav { display: flex; align-items: center; margin-bottom: 15px; gap: 10px; }
-        .back-btn {
-            background: none; border: none; color: var(--tg-theme-button-color, #3390ec);
-            font-size: 16px; cursor: pointer; padding: 5px 0; font-weight: bold;
+
+        .header { display: flex; align-items: center; margin-bottom: 20px; gap: 10px; }
+        .back-btn { 
+            background: none; border: none; color: var(--btn); 
+            font-size: 16px; font-weight: bold; cursor: pointer; display: none;
         }
+
         .card {
-            background-color: var(--tg-theme-secondary-bg-color, #ffffff);
-            border-radius: 12px; padding: 16px; margin-bottom: 12px;
+            background-color: var(--sec-bg);
+            border-radius: 15px; padding: 15px; margin-bottom: 12px;
             display: flex; justify-content: space-between; align-items: center;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05); cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            transition: transform 0.1s;
         }
-        .info-block { flex-grow: 1; }
-        .name { font-size: 16px; font-weight: 600; }
-        .details { font-size: 13px; color: var(--tg-theme-hint-color, #888888); }
-        .badge { color: var(--tg-theme-button-color); font-weight: bold; }
-        
-        /* Стили корзины */
-        .toggle-btn {
-            background-color: var(--tg-theme-button-color, #3390ec);
-            color: var(--tg-theme-button-text-color, #ffffff);
-            border: none; border-radius: 8px; padding: 8px 12px; font-weight: bold;
+        .card:active { transform: scale(0.98); }
+
+        .info { flex-grow: 1; }
+        .name { font-size: 17px; font-weight: 600; margin-bottom: 4px; }
+        .desc { font-size: 13px; color: var(--hint); }
+
+        .btn-action {
+            background-color: var(--btn); color: var(--btn-text);
+            border: none; border-radius: 10px; padding: 8px 15px;
+            font-weight: bold; font-size: 14px;
         }
-        .toggle-btn.selected { background-color: var(--tg-theme-destructive-text-color, #ff3b30); }
-        .counter-box {
-            background-color: var(--tg-theme-secondary-bg-color);
-            border-radius: 12px; padding: 16px; margin-top: 15px;
-            display: flex; justify-content: space-between; align-items: center;
+        .btn-action.selected { background-color: #ff3b30; }
+
+        .counter {
+            background-color: var(--sec-bg); border-radius: 15px;
+            padding: 15px; display: flex; justify-content: space-between;
+            align-items: center; margin-top: 20px;
+        }
+        .count-controls { display: flex; align-items: center; gap: 15px; }
+        .circle-btn {
+            width: 30px; height: 30px; border-radius: 50%;
+            background-color: var(--btn); color: var(--btn-text);
+            border: none; font-size: 20px; display: flex;
+            align-items: center; justify-content: center;
         }
     </style>
 </head>
 <body>
 
-    <div class="header-nav" id="nav-bar" style="display: none;">
-        <button class="back-btn" onclick="goBack()">← Назад</button>
+    <div class="header">
+        <button id="back-btn" class="back-btn" onclick="goBack()">← Назад</button>
+        <h2 id="title" style="margin:0">Мои заведения</h2>
     </div>
 
-    <h2 id="page-title">Мои заведения</h2>
-    <div id="content-list"></div>
+    <div id="app-content">
+        <div style="text-align: center; padding-top: 50px;">Загрузка...</div>
+    </div>
 
-    <div id="people-box" class="counter-box" style="display: none;">
-        <span>Количество человек:</span>
-        <div style="display: flex; align-items: center; gap: 15px;">
-            <button class="toggle-btn" onclick="changePeople(-1)">-</button>
-            <b id="people-count">1</b>
-            <button class="toggle-btn" onclick="changePeople(1)">+</button>
+    <div id="footer-controls" style="display: none;">
+        <div class="counter">
+            <span style="font-weight: 600;">Количество человек:</span>
+            <div class="count-controls">
+                <button class="circle-btn" onclick="updatePeople(-1)">-</button>
+                <span id="p-count" style="font-size: 18px; font-weight: bold;">1</span>
+                <button class="circle-btn" onclick="updatePeople(1)">+</button>
+            </div>
         </div>
     </div>
 
     <script>
         const tg = window.Telegram.WebApp;
+        const API_URL = "https://hematozoic-lankly-demetra.ngrok-free.dev"; // ЗАМЕНИ ЭТО ПЕРЕД ЗАПУСКОМ!
+        
         tg.expand();
 
-        let state = 'objects'; 
-        let selObj = null, selBranch = null, selCat = null;
+        let view = 'objects'; 
+        let history = []; // Для навигации назад
+        let selected = { biz: null, branch: null, cat: null };
         let cart = [];
         let people = 1;
 
-        // --- ДАННЫЕ (Позже заменим на запрос к базе) ---
-        const data = [
-            {
-                id: 1, name: "Стоматология Улыбка", type: "Клиника",
-                branches: [{ id: 10, name: "Юнусабад", addr: "4-й квартал" }, { id: 11, name: "Чиланзар", addr: "9-й квартал" }],
-                categories: [
-                    { id: 100, name: "🦷 Терапия", services: [{id: 1, name: "Осмотр", price: 50000}, {id: 2, name: "Лечение", price: 150000}] },
-                    { id: 101, name: "💎 Чистка", services: [{id: 3, name: "Ультразвук", price: 200000}] }
-                ]
-            },
-            {
-                id: 2, name: "Mosbix Barbershop", type: "Салон",
-                branches: [{ id: 20, name: "Центр", addr: "ул. Навои" }],
-                categories: [{ id: 200, name: "✂️ Стрижки", services: [{id: 4, name: "Стрижка", price: 80000}] }]
+        // 1. ЗАГРУЗКА ДАННЫХ С СЕРВЕРА
+        async function fetchData(path) {
+            try {
+                const res = await fetch(`${API_URL}/api${path}`);
+                return await res.json();
+            } catch (e) {
+                console.error("Ошибка API:", e);
+                return null;
             }
-        ];
+        }
 
-        function render() {
-            const list = document.getElementById('content-list');
-            const title = document.getElementById('page-title');
-            const nav = document.getElementById('nav-bar');
-            const pBox = document.getElementById('people-box');
-            list.innerHTML = '';
-            
-            nav.style.display = (state === 'objects') ? 'none' : 'flex';
-            pBox.style.display = (state === 'services') ? 'flex' : 'none';
+        // 2. ГЛАВНАЯ ФУНКЦИЯ ОТРИСОВКИ
+        async function render() {
+            const content = document.getElementById('app-content');
+            const title = document.getElementById('title');
+            const backBtn = document.getElementById('back-btn');
+            const footer = document.getElementById('footer-controls');
 
-            if (state === 'objects') {
+            content.innerHTML = '';
+            backBtn.style.display = (view === 'objects') ? 'none' : 'block';
+            footer.style.display = (view === 'services') ? 'block' : 'none';
+
+            if (view === 'objects') {
                 title.innerText = "Мои заведения";
-                data.forEach(o => addCard(o.name, o.type, () => { selObj = o; state = 'branches'; render(); }));
+                const tg_id = tg.initDataUnsafe.user?.id || 0;
+                const objects = await fetchData(`/get_my_businesses/${tg_id}`);
+                
+                if (!objects || objects.length === 0) {
+                    content.innerHTML = "<p style='text-align:center'>У вас пока нет заведений. Отсканируйте QR-код!</p>";
+                    return;
+                }
+
+                objects.forEach(obj => {
+                    createCard(content, obj.name, obj.type, () => {
+                        selected.biz = obj;
+                        history.push('objects');
+                        view = 'branches';
+                        render();
+                    });
+                });
             } 
-            else if (state === 'branches') {
-                title.innerText = selObj.name;
-                selObj.branches.forEach(b => addCard(b.name, b.addr, () => { selBranch = b; state = 'categories'; render(); }));
+            else if (view === 'branches') {
+                title.innerText = selected.biz.name;
+                const details = await fetchData(`/get_business_details/${selected.biz.id}`);
+                selected.full_data = details; // Сохраняем в память
+
+                details.branches.forEach(br => {
+                    createCard(content, br.name, br.address, () => {
+                        selected.branch = br;
+                        history.push('branches');
+                        view = 'categories';
+                        render();
+                    });
+                });
             }
-            else if (state === 'categories') {
+            else if (view === 'categories') {
                 title.innerText = "Категории";
-                selObj.categories.forEach(c => addCard(c.name, "", () => { selCat = c; state = 'services'; render(); }));
+                selected.full_data.categories.forEach(cat => {
+                    createCard(content, cat.name, "", () => {
+                        selected.cat = cat;
+                        history.push('categories');
+                        view = 'services';
+                        render();
+                    });
+                });
             }
-            else if (state === 'services') {
-                title.innerText = selCat.name;
-                selCat.services.forEach(s => addServiceCard(s, list));
+            else if (view === 'services') {
+                title.innerText = selected.cat.name;
+                selected.cat.services.forEach(srv => {
+                    const isSelected = cart.some(i => i.id === srv.id);
+                    const div = document.createElement('div');
+                    div.className = 'card';
+                    div.innerHTML = `
+                        <div class="info">
+                            <div class="name">${srv.name}</div>
+                            <div class="desc">${srv.price.toLocaleString()} сум • ${srv.duration_minutes} мин</div>
+                        </div>
+                        <button class="btn-action ${isSelected ? 'selected' : ''}" onclick="toggleCart(${srv.id}, ${srv.price})">
+                            ${isSelected ? 'Убрать' : 'Добавить'}
+                        </button>`;
+                    content.appendChild(div);
+                });
                 updateMainButton();
             }
         }
 
-        function addCard(n, d, action) {
-            const list = document.getElementById('content-list');
+        // ХЕЛПЕРЫ
+        function createCard(parent, n, d, action) {
             const div = document.createElement('div');
             div.className = 'card';
             div.onclick = action;
-            div.innerHTML = `<div class="info-block"><div class="name">${n}</div><div class="details">${d}</div></div><div class="badge">❯</div>`;
-            list.appendChild(div);
+            div.innerHTML = `<div class="info"><div class="name">${n}</div><div class="desc">${d}</div></div><div style="color:var(--btn)">❯</div>`;
+            parent.appendChild(div);
         }
 
-        function addServiceCard(s, list) {
-            const isSel = cart.some(item => item.id === s.id);
-            const div = document.createElement('div');
-            div.className = 'card';
-            div.innerHTML = `
-                <div class="info-block"><div class="name">${s.name}</div><div class="details">${s.price.toLocaleString()} сум</div></div>
-                <button class="toggle-btn ${isSel ? 'selected' : ''}" onclick="toggleSrv(${s.id}, ${s.price})">
-                    ${isSel ? 'Убрать' : 'Добавить'}
-                </button>`;
-            list.appendChild(div);
-        }
-
-        function toggleSrv(id, price) {
+        function toggleCart(id, price) {
             const idx = cart.findIndex(i => i.id === id);
-            if (idx > -1) cart.splice(idx, 1); else cart.push({id, price});
+            if (idx > -1) cart.splice(idx, 1);
+            else cart.push({id, price});
             render();
         }
 
-        function changePeople(d) {
-            if (people + d >= 1 && people + d <= 5) { people += d; document.getElementById('people-count').innerText = people; updateMainButton(); }
+        function updatePeople(val) {
+            if (people + val >= 1 && people + val <= 5) {
+                people += val;
+                document.getElementById('p-count').innerText = people;
+                updateMainButton();
+            }
         }
 
         function updateMainButton() {
-            let sum = cart.reduce((a, b) => a + b.price, 0) * people;
-            if (sum > 0) { tg.MainButton.text = `ВЫБРАТЬ ВРЕМЯ • ${sum.toLocaleString()} сум`; tg.MainButton.show(); }
-            else tg.MainButton.hide();
+            const total = cart.reduce((a, b) => a + b.price, 0) * people;
+            if (total > 0) {
+                tg.MainButton.text = `ВЫБРАТЬ ВРЕМЯ • ${total.toLocaleString()} сум`;
+                tg.MainButton.show();
+            } else tg.MainButton.hide();
         }
 
         function goBack() {
+            view = history.pop();
             tg.MainButton.hide();
-            if (state === 'services') state = 'categories';
-            else if (state === 'categories') state = 'branches';
-            else if (state === 'branches') state = 'objects';
             render();
         }
 
         tg.MainButton.onClick(() => {
-            // Здесь будет переход к выбору Мастера и Даты
-            tg.showConfirm(`Вы выбрали услуг на ${cart.reduce((a, b) => a + b.price, 0) * people} сум. Перейти к выбору мастера?`);
+            tg.showConfirm(`Записать ${people} чел. на сумму ${cart.reduce((a, b) => a + b.price, 0) * people} сум?`);
         });
 
+        // Запуск
         render();
     </script>
 </body>
