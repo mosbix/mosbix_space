@@ -98,14 +98,18 @@
         let people = 1;
 
         // 1. ЗАГРУЗКА ДАННЫХ С СЕРВЕРА
-        async function fetchData(path) {
-            try {
-                const res = await fetch(`${API_URL}/api${path}`);
-                return await res.json();
-            } catch (e) {
-                console.error("Ошибка API:", e);
-                return null;
+       async function fetchData(path) {
+    try {
+        const res = await fetch(`${API_URL}/api${path}`, {
+            headers: {
+                'ngrok-skip-browser-warning': 'true' // Это уберет ту самую страницу с кнопкой
             }
+        });
+        return await res.json();
+    } catch (e) {
+        console.error("Ошибка API:", e);
+        return null;
+    }
         }
 
         // 2. ГЛАВНАЯ ФУНКЦИЯ ОТРИСОВКИ
@@ -230,4 +234,5 @@
     </script>
 </body>
 </html>
+
 
