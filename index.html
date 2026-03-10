@@ -3,203 +3,169 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Mosbix Space - Онлайн Запись</title>
-    
+    <title>Mosbix Space</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             background-color: var(--tg-theme-bg-color, #f4f4f5);
             color: var(--tg-theme-text-color, #000000);
-            margin: 0;
-            padding: 16px;
-            box-sizing: border-box;
+            margin: 0; padding: 16px; box-sizing: border-box;
         }
-
-        h1, h2 { margin-top: 0; }
-
-        .service-card {
+        .header-nav { display: flex; align-items: center; margin-bottom: 15px; gap: 10px; }
+        .back-btn {
+            background: none; border: none; color: var(--tg-theme-button-color, #3390ec);
+            font-size: 16px; cursor: pointer; padding: 5px 0; font-weight: bold;
+        }
+        .card {
             background-color: var(--tg-theme-secondary-bg-color, #ffffff);
-            border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 12px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            border: 1px solid #e5e5ea;
+            border-radius: 12px; padding: 16px; margin-bottom: 12px;
+            display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); cursor: pointer;
         }
-
-        .service-info { flex-grow: 1; }
-        .service-name { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
-        .service-price { font-size: 14px; color: var(--tg-theme-hint-color, #888888); }
-
+        .info-block { flex-grow: 1; }
+        .name { font-size: 16px; font-weight: 600; }
+        .details { font-size: 13px; color: var(--tg-theme-hint-color, #888888); }
+        .badge { color: var(--tg-theme-button-color); font-weight: bold; }
+        
+        /* Стили корзины */
         .toggle-btn {
             background-color: var(--tg-theme-button-color, #3390ec);
             color: var(--tg-theme-button-text-color, #ffffff);
-            border: none;
-            border-radius: 8px;
-            padding: 8px 16px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: 0.2s;
+            border: none; border-radius: 8px; padding: 8px 12px; font-weight: bold;
         }
-
-        .toggle-btn.selected {
-            background-color: var(--tg-theme-destructive-text-color, #ff3b30);
-        }
-
-        .people-counter {
-            background-color: var(--tg-theme-secondary-bg-color, #ffffff);
-            border-radius: 12px;
-            padding: 16px;
-            margin-top: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border: 1px solid #e5e5ea;
-        }
-
-        .counter-controls { display: flex; align-items: center; gap: 12px; }
-
-        .counter-btn {
-            background-color: var(--tg-theme-button-color, #3390ec);
-            color: var(--tg-theme-button-text-color, #ffffff);
-            border: none;
-            border-radius: 50%;
-            width: 32px;
-            height: 32px;
-            font-size: 18px;
-            line-height: 1;
-            cursor: pointer;
-        }
-        
-        /* Блок для показа суммы в обычном браузере (вне Telegram) */
-        #browser-cart {
-            display: none;
-            margin-top: 20px;
-            padding: 16px;
-            background-color: #3390ec;
-            color: white;
-            border-radius: 12px;
-            text-align: center;
-            font-weight: bold;
-            font-size: 18px;
-            cursor: pointer;
+        .toggle-btn.selected { background-color: var(--tg-theme-destructive-text-color, #ff3b30); }
+        .counter-box {
+            background-color: var(--tg-theme-secondary-bg-color);
+            border-radius: 12px; padding: 16px; margin-top: 15px;
+            display: flex; justify-content: space-between; align-items: center;
         }
     </style>
 </head>
 <body>
 
-    <h2 id="business-title">Загрузка заведения...</h2>
-    <p>Выберите нужные услуги:</p>
-
-    <div id="services-container"></div>
-
-    <div class="people-counter">
-        <span style="font-weight: 600;">Количество человек:</span>
-        <div class="counter-controls">
-            <button class="counter-btn" onclick="changePeople(-1)">-</button>
-            <span id="people-count" style="font-weight: bold; font-size: 18px;">1</span>
-            <button class="counter-btn" onclick="changePeople(1)">+</button>
-        </div>
+    <div class="header-nav" id="nav-bar" style="display: none;">
+        <button class="back-btn" onclick="goBack()">← Назад</button>
     </div>
-    
-    <div id="browser-cart" onclick="alert('В Telegram это будет большая кнопка внизу экрана!')">
-        Итого: 0 сум
+
+    <h2 id="page-title">Мои заведения</h2>
+    <div id="content-list"></div>
+
+    <div id="people-box" class="counter-box" style="display: none;">
+        <span>Количество человек:</span>
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <button class="toggle-btn" onclick="changePeople(-1)">-</button>
+            <b id="people-count">1</b>
+            <button class="toggle-btn" onclick="changePeople(1)">+</button>
+        </div>
     </div>
 
     <script>
-        // БЕЗОПАСНАЯ ИНИЦИАЛИЗАЦИЯ (Работает и в Telegram, и в браузере)
-        const tg = window.Telegram ? window.Telegram.WebApp : null;
-        
-        if (tg && tg.initData) {
-            try { tg.expand(); } catch(e) {}
-        }
+        const tg = window.Telegram.WebApp;
+        tg.expand();
 
-        let selectedServices = [];
-        let totalSum = 0;
-        let peopleCount = 1;
+        let state = 'objects'; 
+        let selObj = null, selBranch = null, selCat = null;
+        let cart = [];
+        let people = 1;
 
-        // ВРЕМЕННЫЕ ДАННЫЕ
-        const fakeData = {
-            businessName: "Стоматология Улыбка",
-            services: [
-                { id: 1, name: "Первичный осмотр", price: 50000, duration: 30 },
-                { id: 2, name: "Лечение кариеса", price: 150000, duration: 60 },
-                { id: 3, name: "Профессиональная чистка", price: 200000, duration: 40 }
-            ]
-        };
-
-        // Отрисовка страницы
-        document.getElementById('business-title').innerText = fakeData.businessName;
-        renderServices();
-
-        function renderServices() {
-            const container = document.getElementById('services-container');
-            container.innerHTML = '';
-
-            fakeData.services.forEach(service => {
-                const isSelected = selectedServices.some(s => s.id === service.id);
-                const card = document.createElement('div');
-                card.className = 'service-card';
-                card.innerHTML = `
-                    <div class="service-info">
-                        <div class="service-name">${service.name}</div>
-                        <div class="service-price">${service.price.toLocaleString('ru-RU')} сум • ⏱ ${service.duration} мин</div>
-                    </div>
-                    <button class="toggle-btn ${isSelected ? 'selected' : ''}" 
-                            onclick="toggleService(${service.id}, ${service.price})">
-                        ${isSelected ? 'Убрать' : 'Добавить'}
-                    </button>
-                `;
-                container.appendChild(card);
-            });
-        }
-
-        function toggleService(id, price) {
-            const index = selectedServices.findIndex(s => s.id === id);
-            if (index > -1) {
-                selectedServices.splice(index, 1);
-            } else {
-                selectedServices.push({ id, price });
+        // --- ДАННЫЕ (Позже заменим на запрос к базе) ---
+        const data = [
+            {
+                id: 1, name: "Стоматология Улыбка", type: "Клиника",
+                branches: [{ id: 10, name: "Юнусабад", addr: "4-й квартал" }, { id: 11, name: "Чиланзар", addr: "9-й квартал" }],
+                categories: [
+                    { id: 100, name: "🦷 Терапия", services: [{id: 1, name: "Осмотр", price: 50000}, {id: 2, name: "Лечение", price: 150000}] },
+                    { id: 101, name: "💎 Чистка", services: [{id: 3, name: "Ультразвук", price: 200000}] }
+                ]
+            },
+            {
+                id: 2, name: "Mosbix Barbershop", type: "Салон",
+                branches: [{ id: 20, name: "Центр", addr: "ул. Навои" }],
+                categories: [{ id: 200, name: "✂️ Стрижки", services: [{id: 4, name: "Стрижка", price: 80000}] }]
             }
-            updateCart();
-            renderServices(); 
-        }
+        ];
 
-        function changePeople(delta) {
-            let newCount = peopleCount + delta;
-            if (newCount >= 1 && newCount <= 5) {
-                peopleCount = newCount;
-                document.getElementById('people-count').innerText = peopleCount;
-                updateCart();
+        function render() {
+            const list = document.getElementById('content-list');
+            const title = document.getElementById('page-title');
+            const nav = document.getElementById('nav-bar');
+            const pBox = document.getElementById('people-box');
+            list.innerHTML = '';
+            
+            nav.style.display = (state === 'objects') ? 'none' : 'flex';
+            pBox.style.display = (state === 'services') ? 'flex' : 'none';
+
+            if (state === 'objects') {
+                title.innerText = "Мои заведения";
+                data.forEach(o => addCard(o.name, o.type, () => { selObj = o; state = 'branches'; render(); }));
+            } 
+            else if (state === 'branches') {
+                title.innerText = selObj.name;
+                selObj.branches.forEach(b => addCard(b.name, b.addr, () => { selBranch = b; state = 'categories'; render(); }));
+            }
+            else if (state === 'categories') {
+                title.innerText = "Категории";
+                selObj.categories.forEach(c => addCard(c.name, "", () => { selCat = c; state = 'services'; render(); }));
+            }
+            else if (state === 'services') {
+                title.innerText = selCat.name;
+                selCat.services.forEach(s => addServiceCard(s, list));
+                updateMainButton();
             }
         }
 
-        function updateCart() {
-            totalSum = selectedServices.reduce((sum, service) => sum + service.price, 0) * peopleCount;
-
-            // Если мы внутри Telegram — используем родную красивую кнопку
-            if (tg && tg.initData && tg.MainButton) {
-                if (totalSum > 0) {
-                    tg.MainButton.text = `ПРОДОЛЖИТЬ • ${totalSum.toLocaleString('ru-RU')} сум`;
-                    tg.MainButton.show();
-                } else {
-                    tg.MainButton.hide();
-                }
-            } else {
-                // Если мы в обычном браузере — показываем обычную HTML кнопку
-                const browserBtn = document.getElementById('browser-cart');
-                if (totalSum > 0) {
-                    browserBtn.style.display = 'block';
-                    browserBtn.innerText = `ПРОДОЛЖИТЬ • ${totalSum.toLocaleString('ru-RU')} сум`;
-                } else {
-                    browserBtn.style.display = 'none';
-                }
-            }
+        function addCard(n, d, action) {
+            const list = document.getElementById('content-list');
+            const div = document.createElement('div');
+            div.className = 'card';
+            div.onclick = action;
+            div.innerHTML = `<div class="info-block"><div class="name">${n}</div><div class="details">${d}</div></div><div class="badge">❯</div>`;
+            list.appendChild(div);
         }
+
+        function addServiceCard(s, list) {
+            const isSel = cart.some(item => item.id === s.id);
+            const div = document.createElement('div');
+            div.className = 'card';
+            div.innerHTML = `
+                <div class="info-block"><div class="name">${s.name}</div><div class="details">${s.price.toLocaleString()} сум</div></div>
+                <button class="toggle-btn ${isSel ? 'selected' : ''}" onclick="toggleSrv(${s.id}, ${s.price})">
+                    ${isSel ? 'Убрать' : 'Добавить'}
+                </button>`;
+            list.appendChild(div);
+        }
+
+        function toggleSrv(id, price) {
+            const idx = cart.findIndex(i => i.id === id);
+            if (idx > -1) cart.splice(idx, 1); else cart.push({id, price});
+            render();
+        }
+
+        function changePeople(d) {
+            if (people + d >= 1 && people + d <= 5) { people += d; document.getElementById('people-count').innerText = people; updateMainButton(); }
+        }
+
+        function updateMainButton() {
+            let sum = cart.reduce((a, b) => a + b.price, 0) * people;
+            if (sum > 0) { tg.MainButton.text = `ВЫБРАТЬ ВРЕМЯ • ${sum.toLocaleString()} сум`; tg.MainButton.show(); }
+            else tg.MainButton.hide();
+        }
+
+        function goBack() {
+            tg.MainButton.hide();
+            if (state === 'services') state = 'categories';
+            else if (state === 'categories') state = 'branches';
+            else if (state === 'branches') state = 'objects';
+            render();
+        }
+
+        tg.MainButton.onClick(() => {
+            // Здесь будет переход к выбору Мастера и Даты
+            tg.showConfirm(`Вы выбрали услуг на ${cart.reduce((a, b) => a + b.price, 0) * people} сум. Перейти к выбору мастера?`);
+        });
+
+        render();
     </script>
 </body>
 </html>
